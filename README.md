@@ -22,6 +22,9 @@ Download the [Overleaf document](https://www.overleaf.com/read/qrjbtzwtjhmx)
 - Intra-group evaluation form for Week 6 (T.B.A.)
 - Intra-group evaluation form for Week 7 (T.B.A.)
 
+## News
+ - Improve your GitHub account following [this document](https://docs.google.com/document/d/14oxSKWBbMajIB5Bn2CM-DNb-vychY1f393qYfsHNJfY/edit?usp=sharing)
+
 ## Groups
  - [Group 1:]()
   - Belén Luque
