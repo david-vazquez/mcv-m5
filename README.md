@@ -21,3 +21,42 @@ Download the [Overleaf document](https://www.overleaf.com/read/qrjbtzwtjhmx)
 - Intra-group evaluation form for Week 4 (T.B.A.)
 - Intra-group evaluation form for Week 6 (T.B.A.)
 - Intra-group evaluation form for Week 7 (T.B.A.)
+
+## Groups
+ - [Group 1:]()
+  - Belén Luque
+  - Anna Martí
+  - Santi Puch
+ - [Group 2:](https://github.com/vcampmany/mcv-m5)
+  - Victor Campmany
+  - Pau Cebrián
+  - Arnau Baró
+  - Guillem Cuanull
+ - Group 3:
+  - Lidia Garrucho
+  - Cristina Bustos
+  - Xian López
+  - Xènia Salina
+ - Group 4:
+  - Arnau Casaderull
+  - Adrián Salvador
+  - Antoni Pérez
+  - Sergio Castro
+ - [Group 5:](https://github.com/idoiaruiz/mcv-m5)
+  - Roque Rodríguez
+  - Idoia Ruíz
+  - Onofre Martorel
+  - Lidia Talavera
+ - [Group 6:](https://github.com/LLebronC/mcv-m5)
+  - Jose Luis Gómez
+  - Luís Lebron
+  - Axel Barroso
+ - [Group 7:](https://github.com/vsegura93/mcv-m5)
+  - Gonzalo Benito
+  - Víctor Segura
+  - Marc Grau
+  - Marc Carné
+ - Group 8:
+  - Jordi Puyoles
+  - Ignasi Mas
+  - Hugo Prol
