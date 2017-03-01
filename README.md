@@ -36,7 +36,7 @@ Download the [Overleaf document](https://www.overleaf.com/read/qrjbtzwtjhmx)
   - Pau Cebrián
   - Arnau Baró
   - Guillem Cuanull
- - Group 3:
+ - [Group 3:](https://github.com/XeniaSalinas/mcv-m5)
   - Lidia Garrucho
   - Cristina Bustos
   - Xian López
