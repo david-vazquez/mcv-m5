@@ -26,10 +26,11 @@ Download the [Overleaf document](https://www.overleaf.com/read/qrjbtzwtjhmx)
  - Improve your GitHub account following [this document](https://docs.google.com/document/d/14oxSKWBbMajIB5Bn2CM-DNb-vychY1f393qYfsHNJfY/edit?usp=sharing)
 
 ## Groups
- - [Group 1:]()
+ - [Group 1:](https://github.com/santipuch590/vr-project)
   - Belén Luque
   - Anna Martí
   - Santi Puch
+  - Arantxa Casanova
  - [Group 2:](https://github.com/vcampmany/mcv-m5)
   - Victor Campmany
   - Pau Cebrián
