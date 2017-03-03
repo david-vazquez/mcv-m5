@@ -41,8 +41,8 @@ Download the [Overleaf document](https://www.overleaf.com/read/qrjbtzwtjhmx)
   - Cristina Bustos
   - Xian López
   - Xènia Salina
- - Group 4:
-  - Arnau Casaderull
+ - [Group 4:](https://github.com/acasadevall/VR-Team4)
+  - Arnau Casadevall
   - Adrián Salvador
   - Antoni Pérez
   - Sergio Castro
@@ -60,7 +60,7 @@ Download the [Overleaf document](https://www.overleaf.com/read/qrjbtzwtjhmx)
   - Víctor Segura
   - Marc Grau
   - Marc Carné
- - Group 8:
+ - [Group 8:](https://github.com/hprop/mcv-m5)
   - Jordi Puyoles
   - Ignasi Mas
   - Hugo Prol
