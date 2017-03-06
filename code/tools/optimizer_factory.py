@@ -15,7 +15,7 @@ class Optimizer_Factory():
         elif cf.optimizer == 'adam':
             opt = Adam(lr=1E-3, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
 
-        elif cf.optimizer == 'adam':
+        elif cf.optimizer == 'sgd':
             opt = SGD(lr=1E-3, momentum=0.9, nesterov=True)
 
         else:
