@@ -60,6 +60,9 @@ class One_Net_Model(Model):
     # Predict the model
     def predict(self, test_gen, tag='pred'):
         if self.cf.pred_model:
+            print('Predict method not implemented.')
+            return
+            # TODO fix model predict method
             print('\n > Predicting the model...')
             # Load best trained model
             # self.model.load_weights(os.path.join(self.cf.savepath, "weights.hdf5"))
