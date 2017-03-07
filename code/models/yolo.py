@@ -52,8 +52,6 @@ def build_yolo(img_shape=(3, 416, 416), n_classes=80, n_priors=5,
                 if layer.name in base_model_layers:
                     layer.trainable = False
         else:
-            for i, layer in enumerate(model.layers):
-                print(i, layer.name)
             print ('   Freezing from layer 0 to ' + str(freeze_layers_from))
             for layer in model.layers[:freeze_layers_from]:
                layer.trainable = False
