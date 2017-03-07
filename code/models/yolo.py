@@ -13,6 +13,9 @@ def build_yolo(img_shape=(3, 416, 416), n_classes=80, n_priors=5,
                load_pretrained=False,freeze_layers_from='base_model',
                tiny=False):
 
+    # YOLO model is only implemented for TF backend
+    assert(K.backend() == 'tensorflow')
+
     model = []
 
     # Get base model
