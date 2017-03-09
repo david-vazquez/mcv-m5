@@ -132,6 +132,7 @@ class Dataset_Generators():
                                    samplewise_std_normalization=cf.norm_samplewise_std_normalization,
                                    gcn=cf.norm_gcn,
                                    zca_whitening=cf.norm_zca_whitening,
+                                   crop_size=cf.crop_size_test,
                                    dim_ordering='th' if cf.model_name == 'yolo' else 'default',
                                    class_mode=cf.dataset.class_mode)
         test_gen = dg_ts.flow_from_directory(directory=cf.dataset.path_test_img,
