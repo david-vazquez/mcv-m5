@@ -79,10 +79,19 @@ class Configuration():
         elif cf.resize_test is not None: cf.target_size_test = cf.resize_test
         else: cf.target_size_test = cf.dataset.img_shape
 
-        # Get weights file name
+        # Get training weights file name
         path, _ = os.path.split(cf.weights_file)
         if path == '':
             cf.weights_file = os.path.join(cf.savepath, cf.weights_file)
+
+        # Get testing weights file name
+        try:
+            path_test, _ = os.path.split(cf.weights_test_file)
+            if path_test == '':
+                cf.weights_test_file = os.path.join(cf.savepath, cf.weights_test_file)
+        except:
+            cf.weights_test_file = os.path.join(cf.savepath, 'weights.hdf5')
+
 
         # Plot metrics
         if cf.dataset.class_mode == 'segmentation':
