@@ -7,7 +7,7 @@ else:
     import tensorflow as tf
     from tensorflow.python.framework import ops
 
-import numpy as np # YOLOLoss is implemented as a numpy function
+import numpy as np # YOLO fscore metric is implemented as a numpy function
 
 
 def cce_flatt(void_class, weights_class):
@@ -108,159 +108,90 @@ def IoU(n_classes, void_labels):
         return out
     return IoU_flatt
 
+
+
 """YOLO loss function"""
 
-from tools.yolo_utils import logistic_activate,logistic_gradient,yolo_activate_regions
-from tools.yolo_utils import yolo_delta_region_box,yolo_box_iou,yolo_get_region_box 
-from tools.yolo_utils import yolo_get_region_boxes,yolo_do_nms_sort
+def logistic_activate_tensor(x):
+    return 1. / (1. + tf.exp(-x))
 
 def YOLOLoss(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,0.5], [1.0,1.0], [1.7,1.7], [2.5,2.5]],max_truth_boxes=30,thresh=0.6,object_scale=5.0,noobject_scale=1.0,coord_scale=1.0,class_scale=1.0):
 
   # Def custom loss function using numpy
-  def _YOLOLoss(y_true, y_pred, name=None):
+  def _YOLOLoss(y_true, y_pred, name=None, priors=priors):
 
-    with ops.name_scope( name, "YOLOloss", [y_true,y_pred] ) as name:
-        delta = py_func(YOLOLoss_np,
-                        [y_true,y_pred,num_classes,np.array(priors),
-                         max_truth_boxes,thresh,object_scale,
-                         noobject_scale,coord_scale,class_scale],
-                        [tf.float32],
-                        name=name,
-                        grad=_YOLOLossGrad)  # <-- call to the gradient
+      # TODO check dim_ordering. this is because we use th dimordering in tf
+      net_out = tf.transpose(y_pred, perm=[0, 2, 3, 1])
 
-        output_shape = [-1, len(priors)*(4+num_classes+1), input_shape[1]/32, input_shape[2]/32]
-        delta = tf.reshape(delta[0], output_shape)
-        return K.sum(K.square(delta),axis=(1,2,3))
+      _,h,w,c = net_out.get_shape().as_list()
+      b = len(priors)
+      anchors = np.array(priors)
+
+      size1 = [None, h*w, b, num_classes]
+      size2 = [None, h*w, b]
+
+      _probs, _confs, _coord, _proid, _areas, _upleft, _botright = tf.split(y_true, [num_classes,1,4,num_classes,1,2,2], axis=3)
+      _confs = tf.squeeze(_confs,3)
+      _areas = tf.squeeze(_areas,3)
+
+      net_out_reshape = tf.reshape(y_pred, [-1, h, w, b, (4 + 1 + num_classes)])
+      # Extract the coordinate prediction from net.out
+      coords = net_out_reshape[:, :, :, :, :4]
+      coords = tf.reshape(coords, [-1, h*w, b, 4])
+      adjusted_coords_xy = logistic_activate_tensor(coords[:,:,:,0:2])
+      adjusted_coords_wh = tf.sqrt(tf.exp(coords[:,:,:,2:4]) * np.reshape(anchors, [1, 1, b, 2]) / np.reshape([w, h], [1, 1, 1, 2]))
+      coords = tf.concat([adjusted_coords_xy, adjusted_coords_wh], 3)
+
+      adjusted_c = logistic_activate_tensor(net_out_reshape[:, :, :, :, 4])
+      adjusted_c = tf.reshape(adjusted_c, [-1, h*w, b, 1])
+
+      adjusted_prob = tf.nn.softmax(net_out_reshape[:, :, :, :, 5:])
+      adjusted_prob = tf.reshape(adjusted_prob, [-1, h*w, b, num_classes])
+
+      adjusted_net_out = tf.concat([adjusted_coords_xy, adjusted_coords_wh, adjusted_c, adjusted_prob], 3)
+
+      wh = tf.pow(coords[:,:,:,2:4], 2) *  np.reshape([w, h], [1, 1, 1, 2])
+      area_pred = wh[:,:,:,0] * wh[:,:,:,1]
+      centers = coords[:,:,:,0:2]
+      floor = centers - (wh * .5)
+      ceil  = centers + (wh * .5)
+
+      # calculate the intersection areas
+      intersect_upleft   = tf.maximum(floor, _upleft)
+      intersect_botright = tf.minimum(ceil, _botright)
+      intersect_wh = intersect_botright - intersect_upleft
+      intersect_wh = tf.maximum(intersect_wh, 0.0)
+      intersect = tf.multiply(intersect_wh[:,:,:,0], intersect_wh[:,:,:,1])
+
+      # calculate the best IOU, set 0.0 confidence for worse boxes
+      iou = tf.truediv(intersect, _areas + area_pred - intersect)
+      best_box = tf.equal(iou, tf.reduce_max(iou, [2], True))
+      best_box = tf.to_float(best_box)
+      confs = tf.multiply(best_box, _confs)
+
+      # take care of the weight terms
+      conid = noobject_scale * (1. - confs) + object_scale * confs
+      weight_coo = tf.concat(4 * [tf.expand_dims(confs, -1)], 3)
+      cooid = coord_scale * weight_coo
+      weight_pro = tf.concat(num_classes * [tf.expand_dims(confs, -1)], 3)
+      proid = class_scale * weight_pro
+
+      true = tf.concat([_coord, tf.expand_dims(confs, 3), _probs ], 3)
+      wght = tf.concat([cooid, tf.expand_dims(conid, 3), proid ], 3)
+
+      loss = tf.pow(adjusted_net_out - true, 2)
+      loss = tf.multiply(loss, wght)
+      loss = tf.reshape(loss, [-1, h*w*b*(4 + 1 + num_classes)])
+      loss = tf.reduce_sum(loss, 1)
+
+      return tf.reduce_mean(loss)
 
   return _YOLOLoss
 
-# Define custom py_func which takes also a grad op as argument:
-def py_func(func, inp, Tout, stateful=True, name=None, grad=None):
-
-    # Need to generate a unique name to avoid duplicates:
-    rnd_name = 'PyFuncGrad' + str(np.random.randint(0, 1E+8))
-
-    tf.RegisterGradient(rnd_name)(grad)  # see _YOLOLossGrad for grad example
-    g = tf.get_default_graph()
-    with g.gradient_override_map({"PyFunc": rnd_name}):
-        return tf.py_func(func, inp, Tout, stateful=stateful, name=name)
-
-# Actual gradient:
-def _YOLOLossGrad(op, grad):
-    y_true = op.inputs[0]
-    y_pred = op.inputs[1]
-    num_classes = op.inputs[2]
-    priors = op.inputs[3]
-    max_truth_boxes = op.inputs[4]
-    thresh = op.inputs[5]
-    object_scale = op.inputs[6]
-    noobject_scale = op.inputs[7]
-    coord_scale = op.inputs[8]
-    class_scale = op.inputs[9]
-    return [tf.zeros_like(y_true), -op.outputs[0], tf.zeros_like(num_classes), tf.zeros_like(priors),
-            tf.zeros_like(max_truth_boxes),tf.zeros_like(thresh),tf.zeros_like(object_scale),
-            tf.zeros_like(noobject_scale),tf.zeros_like(coord_scale),tf.zeros_like(class_scale)]
-
-
-def YOLOLoss_np(y_true, y_pred, num_classes, priors, max_truth_boxes, thresh,
-                object_scale, noobject_scale, coord_scale, class_scale):
-
-    num_priors = priors.shape[0]
-    prior_match = True
-    num_coords  = 4
-    data_size = num_coords+num_classes+1
-    delta_shape = y_pred.shape
-    delta = np.zeros(delta_shape, dtype='f')
-
-    y_pred = yolo_activate_regions(y_pred,num_priors,num_classes)
-
-    batch_size = y_pred.shape[0]
-    h = y_pred.shape[2]
-    w = y_pred.shape[3]
-
-    avg_iou = 0.
-    recall = 0.
-    avg_cat = 0.
-    avg_obj = 0.
-    avg_anyobj = 0.
-    count = 0.
-    class_count = 0.
-
-    for b in range(batch_size):
-      for j in range(h):
-        for i in range(w):
-          for n in range(num_priors):
-            pred_box = yolo_get_region_box(y_pred[b,n*data_size:n*data_size+4,j,i],n,i,j,w,h,priors)
-            best_iou = 0.0
-            for t in range(max_truth_boxes):
-              t_i = t%w
-              t_j = t/w
-              if (y_true[b,0,t_j,t_i] < 0): break # no truth information in this position
-              truth_box = y_true[b,1:5,t_j,t_i]
-              iou = yolo_box_iou(pred_box, truth_box)
-              if (iou > best_iou):
-                best_iou = iou
-            avg_anyobj += y_pred[b,n*data_size+4,j,i]
-            if (best_iou > thresh):
-              delta[b,n*data_size+4,j,i] = 0
-            else:
-              delta[b,n*data_size+4,j,i] = noobject_scale * ((0 - y_pred[b,n*data_size+4,j,i]) * logistic_gradient(y_pred[b,n*data_size+4,j,i]))
-
-      for t in range(max_truth_boxes):
-        t_i = t%w
-        t_j = t/w
-        if (y_true[b,0,t_j,t_i] < 0): break # no truth information in this position
-        truth_box = y_true[b,1:5,t_j,t_i]
-
-        best_iou = 0
-        best_index = (0,0,0,0)
-        best_n = 0
-        i = int(truth_box[0] * w)
-        j = int(truth_box[1] * h)
-        truth_shift = truth_box.copy()
-        truth_shift[0] = 0
-        truth_shift[1] = 0
-        for n in range(num_priors):
-          pred_box = yolo_get_region_box(y_pred[b,n*data_size:n*data_size+4,j,i],n,i,j,w,h,priors)
-          if (prior_match):
-            pred_box[2] = priors[n,0]/w
-            pred_box[3] = priors[n,1]/h
-          pred_box[0] = 0
-          pred_box[1] = 0
-          iou = yolo_box_iou(pred_box, truth_shift)
-          if (iou > best_iou):
-            best_index = (b,n*data_size,j,i)
-            best_iou = iou
-            best_n = n
-
-        iou,delta = yolo_delta_region_box(delta, truth_box, y_pred[b,best_n*data_size:best_n*data_size+4,j,i], best_n, best_index, i, j, w, h, priors, coord_scale)
-
-        if(iou > .5): recall += 1.0
-        avg_iou += iou
-        avg_obj += y_pred[best_index[0],best_index[1]+4,best_index[2],best_index[3]]
-
-        x = y_pred[best_index[0],best_index[1] + 4,best_index[2],best_index[3]]
-        delta[best_index[0],best_index[1] + 4,best_index[2],best_index[3]] = object_scale * (iou - x) * logistic_gradient(x)
-
-        truth_class = y_true[b,0,t_j,t_i]
-        #delta_region_class(best_index + 5, truth_class)
-        for c in range(num_classes):
-          if(c == truth_class):
-            delta[best_index[0],best_index[1] + 5 + c,best_index[2],best_index[3]] = class_scale * (1 - y_pred[best_index[0],best_index[1] + 5 + c,best_index[2],best_index[3]])
-            avg_cat += y_pred[best_index[0],best_index[1] + 5 + c,best_index[2],best_index[3]]
-          else:
-            delta[best_index[0],best_index[1] + 5 + c,best_index[2],best_index[3]] = class_scale * (0 - y_pred[best_index[0],best_index[1] + 5 + c,best_index[2],best_index[3]])
-        count += 1
-        class_count +=1
-
-    #print "Region Avg IOU: ",avg_iou/count,", Class: ",avg_cat/class_count,", Obj: ",avg_obj/count,", No Obj: ",avg_anyobj/(w*h*num_priors*batch_size),", Avg Recall: ",recall/count,",  count: ",count
-    #loss = np.power(np.linalg.norm(delta), 2)
-    #print "Loss ",loss
-
-    return delta # return the gradient (the actual loss is just reduce_sum(square(delta)))
-
 
 """YOLO f-score detection metric"""
+
+from tools.yolo_utils import yolo_activate_regions, yolo_box_iou, yolo_get_region_boxes, yolo_do_nms_sort
 
 def YOLOFscore(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,0.5], [1.0,1.0], [1.7,1.7], [2.5,2.5]],max_truth_boxes=30,thresh=0.6,nms_thresh=0.3):
 

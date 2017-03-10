@@ -53,7 +53,9 @@ class Model_Factory():
                         cf.target_size_train[1])
             # TODO different detection nets may have different losses and metrics
             loss = YOLOLoss(in_shape, cf.dataset.n_classes, cf.dataset.priors)
-            metrics = [YOLOFscore(in_shape, cf.dataset.n_classes, cf.dataset.priors)]
+            # TODO reimplement fscore with the new YOLO GT format
+            #metrics = [YOLOFscore(in_shape, cf.dataset.n_classes, cf.dataset.priors)]
+            metrics = []
         elif cf.dataset.class_mode == 'segmentation':
             if K.image_dim_ordering() == 'th':
                 if variable_input_size:
