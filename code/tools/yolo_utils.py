@@ -203,7 +203,7 @@ def yolo_build_gt_batch2(batch_gt,image_shape,num_classes,num_priors=5):
     c = num_classes
     b = num_priors  # TODO pass num_priors
     batch_size = len(batch_gt)
-    batch_y = np.zeros([batch_size,h*w,b,c+4+1+c+1+2+2])
+    batch_y = np.zeros([batch_size,h*w,b,c+4+1+1+2+2])
 
     cellx = 32
     celly = 32
@@ -223,13 +223,11 @@ def yolo_build_gt_batch2(batch_gt,image_shape,num_classes,num_priors=5):
         probs = np.zeros([h*w,b,c])
         confs = np.zeros([h*w,b,1])
         coord = np.zeros([h*w,b,4])
-        proid = np.zeros([h*w,b,c])
         prear = np.zeros([h*w,4])
 
         for obj in objects:
             probs[obj[5], :, :] = [[0.]*c] * b
             probs[obj[5], :, int(obj[0])] = 1.
-            proid[obj[5], :, :] = [[1.]*c] * b
             coord[obj[5], :, :] = [obj[1:5]] * b
             prear[obj[5],0] = obj[1] - obj[3]**2 * .5 * w # xleft
             prear[obj[5],1] = obj[2] - obj[4]**2 * .5 * h # yup
@@ -245,7 +243,7 @@ def yolo_build_gt_batch2(batch_gt,image_shape,num_classes,num_priors=5):
         botright = np.concatenate([botright] * b, 1)
         areas = np.concatenate([area] * b, 1)
 
-        batch_y[i,:] = np.concatenate((probs,confs,coord,proid,areas[:,:,np.newaxis],upleft,botright),axis=2)
+        batch_y[i,:] = np.concatenate((probs,confs,coord,areas[:,:,np.newaxis],upleft,botright),axis=2)
 
     return batch_y
 

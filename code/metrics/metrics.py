@@ -127,7 +127,7 @@ def YOLOLoss(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,0.
       b = len(priors)
       anchors = np.array(priors)
 
-      _probs, _confs, _coord, _proid, _areas, _upleft, _botright = tf.split(y_true, [num_classes,1,4,num_classes,1,2,2], axis=3)
+      _probs, _confs, _coord, _areas, _upleft, _botright = tf.split(y_true, [num_classes,1,4,1,2,2], axis=3)
       _confs = tf.squeeze(_confs,3)
       _areas = tf.squeeze(_areas,3)
 
