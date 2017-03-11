@@ -235,10 +235,13 @@ def YOLOFscore(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,
 
       # calculate the best IOU, set 0.0 confidence for worse boxes
       iou = tf.truediv(intersect, _areas + area_pred - intersect)
-      sum_best_ious = tf.reduce_sum(tf.reduce_max(iou, [2], True), [1])
+      best_ious     = tf.reduce_max(iou, [2], True)
+      recall        = tf.reduce_sum(tf.to_float(tf.greater(best_ious,0.5)), [1])
+      sum_best_ious = tf.reduce_sum(best_ious, [1])
       gt_obj_areas  = tf.reduce_mean(_areas, [2], True)
       num_gt_obj    = tf.reduce_sum(tf.to_float(tf.greater(gt_obj_areas,tf.zeros_like(gt_obj_areas))), [1])
       avg_iou       = tf.truediv(sum_best_ious, num_gt_obj)
+      avg_recall    = tf.truediv(recall, num_gt_obj)
  
 #      best_box = tf.equal(iou, tf.reduce_max(iou, [2], True))
 #      best_box = tf.to_float(best_box)
@@ -260,7 +263,7 @@ def YOLOFscore(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,
 #      loss = tf.reduce_sum(loss, 1)
 
       #return {'avg_iou':tf.reduce_mean(avg_iou),'n_gt':tf.reduce_sum(num_gt_obj),'best_iou':tf.reduce_sum(sum_best_ious)}
-      return {'avg_iou':tf.reduce_mean(avg_iou)}
+      return {'avg_iou':tf.reduce_mean(avg_iou), 'avg_recall':tf.reduce_mean(avg_recall)}
   return _YOLOFscore
 
 #### for the fscore metric in tensor version look at darkflow/net/yolov2/test.py postprocess method,
