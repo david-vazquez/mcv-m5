@@ -21,22 +21,13 @@ def build_yolo(img_shape=(3, 416, 416), n_classes=80, n_priors=5,
     # Get base model
     if not tiny:
       model = YOLO(input_shape=img_shape, num_classes=n_classes, num_priors=n_priors)
+      base_model_layers = [layer.name for layer in model.layers[0:42]]
     else:
       model = TinyYOLO(input_shape=img_shape, num_classes=n_classes, num_priors=n_priors)
-
-    base_model_layers = ['input_1', 'yoloconvolution2d_1', 'maxpooling2d_1', 'yoloconvolution2d_2', 
-          'maxpooling2d_2',
-          'yoloconvolution2d_3', 'yoloconvolution2d_4', 'yoloconvolution2d_5', 'maxpooling2d_3',
-          'yoloconvolution2d_6', 'yoloconvolution2d_7', 'yoloconvolution2d_8', 'maxpooling2d_4',
-          'yoloconvolution2d_9', 'yoloconvolution2d_10', 'yoloconvolution2d_11', 'yoloconvolution2d_12',
-          'yoloconvolution2d_13', 'maxpooling2d_5',
-          'yoloconvolution2d_14', 'yoloconvolution2d_15', 'yoloconvolution2d_16', 'yoloconvolution2d_17',
-          'yoloconvolution2d_18', 'yoloconvolution2d_19',
-          'yoloconvolution2d_20']#, 'reshape_1', 'merge_1', 'yoloconvolution2d_20',
-          #'yoloconvolution2d_21', 'convolution2d_1']
+      base_model_layers = [layer.name for layer in model.layers[0:21]]
 
     if load_pretrained:
-      # Rename last layers to not load pretrained weights
+      # Rename last layer to not load pretrained weights
       model.layers[-1].name += '_new'
       if not tiny:
         model.load_weights('weights/yolo.hdf5',by_name=True)
