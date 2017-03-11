@@ -193,9 +193,9 @@ def YOLOLoss(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,0.
     YOLO detection metrics
     code adapted from https://github.com/thtrieu/darkflow/
 """
-def YOLOFscore(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,0.5], [1.0,1.0], [1.7,1.7], [2.5,2.5]],max_truth_boxes=30,thresh=0.6,nms_thresh=0.3):
+def YOLOMetrics(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,0.5], [1.0,1.0], [1.7,1.7], [2.5,2.5]],max_truth_boxes=30,thresh=0.6,nms_thresh=0.3):
 
-  def _YOLOFscore(y_true, y_pred, name=None):
+  def _YOLOMetrics(y_true, y_pred, name=None):
       net_out = tf.transpose(y_pred, perm=[0, 2, 3, 1])
 
       _,h,w,c = net_out.get_shape().as_list()
@@ -246,5 +246,5 @@ def YOLOFscore(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,
       avg_recall    = tf.truediv(recall, num_gt_obj)
  
       return {'avg_iou':tf.reduce_mean(avg_iou), 'avg_recall':tf.reduce_mean(avg_recall)}
-  return _YOLOFscore
+  return _YOLOMetrics
 
