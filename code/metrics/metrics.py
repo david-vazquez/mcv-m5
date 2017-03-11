@@ -1,3 +1,4 @@
+import numpy as np
 from keras import backend as K
 dim_ordering = K.image_dim_ordering()
 if dim_ordering == 'th':
@@ -6,9 +7,6 @@ if dim_ordering == 'th':
 else:
     import tensorflow as tf
     from tensorflow.python.framework import ops
-
-import numpy as np # YOLO fscore metric is implemented as a numpy function
-
 
 def cce_flatt(void_class, weights_class):
     def categorical_crossentropy_flatt(y_true, y_pred):
