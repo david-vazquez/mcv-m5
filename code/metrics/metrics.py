@@ -163,6 +163,7 @@ def YOLOLoss(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,0.
       # calculate the best IOU, set 0.0 confidence for worse boxes
       iou = tf.truediv(intersect, _areas + area_pred - intersect)
       best_box = tf.equal(iou, tf.reduce_max(iou, [2], True))
+      #best_box = tf.grater_than(iou, 0.5) # LLUIS ???
       best_box = tf.to_float(best_box)
       confs = tf.multiply(best_box, _confs)
 
@@ -186,69 +187,87 @@ def YOLOLoss(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,0.
   return _YOLOLoss
 
 
-"""YOLO f-score detection metric"""
 
-from tools.yolo_utils import yolo_activate_regions, yolo_box_iou, yolo_get_region_boxes, yolo_do_nms_sort
+"""YOLO f-score detection metric"""
 
 def YOLOFscore(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,0.5], [1.0,1.0], [1.7,1.7], [2.5,2.5]],max_truth_boxes=30,thresh=0.6,nms_thresh=0.3):
 
-  # Def custom metric using numpy
   def _YOLOFscore(y_true, y_pred, name=None):
-    with ops.name_scope( name, "YOLOFscore", [y_true,y_pred] ) as name:
-      fscore = tf.py_func(YOLOFscore_np,
-                          [y_true,y_pred,num_classes,np.array(priors),
-                           max_truth_boxes,thresh,nms_thresh],
-                          [tf.float32], name=name)
-    return {'fscore':tf.reduce_mean(fscore[0])}
+      # TODO check dim_ordering. this is because we use th dimordering in tf
+      net_out = tf.transpose(y_pred, perm=[0, 2, 3, 1])
 
+      _,h,w,c = net_out.get_shape().as_list()
+      b = len(priors)
+      anchors = np.array(priors)
+
+      _probs, _confs, _coord, _areas, _upleft, _botright = tf.split(y_true, [num_classes,1,4,1,2,2], axis=3)
+      _confs = tf.squeeze(_confs,3)
+      _areas = tf.squeeze(_areas,3)
+
+      net_out_reshape = tf.reshape(y_pred, [-1, h, w, b, (4 + 1 + num_classes)])
+      # Extract the coordinate prediction from net.out
+      coords = net_out_reshape[:, :, :, :, :4]
+      coords = tf.reshape(coords, [-1, h*w, b, 4])
+      adjusted_coords_xy = logistic_activate_tensor(coords[:,:,:,0:2])
+      adjusted_coords_wh = tf.sqrt(tf.exp(coords[:,:,:,2:4]) * np.reshape(anchors, [1, 1, b, 2]) / np.reshape([w, h], [1, 1, 1, 2]))
+      coords = tf.concat([adjusted_coords_xy, adjusted_coords_wh], 3)
+
+      adjusted_c = logistic_activate_tensor(net_out_reshape[:, :, :, :, 4])
+      adjusted_c = tf.reshape(adjusted_c, [-1, h*w, b, 1])
+
+      adjusted_prob = tf.nn.softmax(net_out_reshape[:, :, :, :, 5:])
+      adjusted_prob = tf.reshape(adjusted_prob, [-1, h*w, b, num_classes])
+
+      adjusted_net_out = tf.concat([adjusted_coords_xy, adjusted_coords_wh, adjusted_c, adjusted_prob], 3)
+
+      wh = tf.pow(coords[:,:,:,2:4], 2) *  np.reshape([w, h], [1, 1, 1, 2])
+      area_pred = wh[:,:,:,0] * wh[:,:,:,1]
+      centers = coords[:,:,:,0:2]
+      floor = centers - (wh * .5)
+      ceil  = centers + (wh * .5)
+
+      # calculate the intersection areas
+      intersect_upleft   = tf.maximum(floor, _upleft)
+      intersect_botright = tf.minimum(ceil, _botright)
+      intersect_wh = intersect_botright - intersect_upleft
+      intersect_wh = tf.maximum(intersect_wh, 0.0)
+      intersect = tf.multiply(intersect_wh[:,:,:,0], intersect_wh[:,:,:,1])
+
+      # calculate the best IOU, set 0.0 confidence for worse boxes
+      iou = tf.truediv(intersect, _areas + area_pred - intersect)
+      sum_best_ious = tf.reduce_sum(tf.reduce_max(iou, [2], True), [1])
+      gt_obj_areas  = tf.reduce_mean(_areas, [2], True)
+      num_gt_obj    = tf.reduce_sum(tf.to_float(tf.greater(gt_obj_areas,tf.zeros_like(gt_obj_areas))), [1])
+      avg_iou       = tf.truediv(sum_best_ious, num_gt_obj)
+ 
+#      best_box = tf.equal(iou, tf.reduce_max(iou, [2], True))
+#      best_box = tf.to_float(best_box)
+#      confs = tf.multiply(best_box, _confs)
+#
+#      # take care of the weight terms
+#      conid = noobject_scale * (1. - confs) + object_scale * confs
+#      weight_coo = tf.concat(4 * [tf.expand_dims(confs, -1)], 3)
+#      cooid = coord_scale * weight_coo
+#      weight_pro = tf.concat(num_classes * [tf.expand_dims(confs, -1)], 3)
+#      proid = class_scale * weight_pro
+#
+#      true = tf.concat([_coord, tf.expand_dims(confs, 3), _probs ], 3)
+#      wght = tf.concat([cooid, tf.expand_dims(conid, 3), proid ], 3)
+#
+#      loss = tf.pow(adjusted_net_out - true, 2)
+#      loss = tf.multiply(loss, wght)
+#      loss = tf.reshape(loss, [-1, h*w*b*(4 + 1 + num_classes)])
+#      loss = tf.reduce_sum(loss, 1)
+
+      #return {'avg_iou':tf.reduce_mean(avg_iou),'n_gt':tf.reduce_sum(num_gt_obj),'best_iou':tf.reduce_sum(sum_best_ious)}
+      return {'avg_iou':tf.reduce_mean(avg_iou)}
   return _YOLOFscore
 
-
-def YOLOFscore_np(y_true, y_pred, num_classes, priors, max_truth_boxes, thresh, nms_thresh):
-    batch_size = y_pred.shape[0]
-    fscore = np.zeros(batch_size, dtype='f')
-    num_priors = priors.shape[0]
-    num_coords  = 4
-    data_size = num_coords+num_classes+1
-
-    y_pred = yolo_activate_regions(y_pred, num_priors, num_classes)
-    boxes,probs = yolo_get_region_boxes(y_pred, priors, num_classes, thresh)
-    boxes,probs = yolo_do_nms_sort(boxes, probs, num_classes, nms_thresh)
-
-
-    # for each image in batch
-    for i in range(batch_size):
-        b = boxes[i,:,:]
-        p = probs[i,:,:]
-        num_boxes   = b.shape[0]
-        num_classes = p.shape[1]
-        # put GT boxes for this image in a list
-        gt_boxes = []
-        for h_i in range(y_true.shape[2]):
-          for w_i in range(y_true.shape[3]):
-            if y_true[i,0,h_i,w_i] >= 0:
-              gt_boxes.append(y_true[i,:,h_i,w_i])
-        num_gt = len(gt_boxes)
-        ok    = 0.
-        total = 0.
-        # for each detected bounding box in this image, find the class with maximum prob
-        for j in range(num_boxes):
-            max_class = np.argmax(p[j,:])
-            pb = p[j,max_class]
-            if(pb > thresh):
-                total += 1.
-                bb = b[j,:]
-                # count as TP if the box overlaps more than 50% with a GT object and the class is correct
-                for idx,gt in enumerate(gt_boxes):
-                    if gt[0] == max_class and yolo_box_iou(bb,gt[1:5]) > 0.5:
-                        ok += 1.
-                        gt_boxes = gt_boxes[0:idx]+gt_boxes[idx+1:]
-                        break
-        recall = ok / num_gt
-        precision = 0.
-        if total > 0.:
-          precision = ok / total
-        if (recall+precision) > 0:
-          fscore[i] = 2 * ((recall*precision) / (recall+precision))
-
-    return fscore
+#### for the fscore metric in tensor version look at darkflow/net/yolov2/test.py postprocess method,
+# it is called per image in batch as follows::
+# 
+#        for i, prediction in enumerate(out): # out is the output of forward pass
+#            self.framework.postprocess(prediction,
+#                os.path.join(inp_path, all_inp[i]))
+#
+#
