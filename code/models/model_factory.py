@@ -53,6 +53,7 @@ class Model_Factory():
                         cf.target_size_train[1])
             # TODO different detection nets may have different losses and metrics
             loss = YOLOLoss(in_shape, cf.dataset.n_classes, cf.dataset.priors)
+            # TODO reimplement fscore with the new YOLO GT format
             metrics = [YOLOFscore(in_shape, cf.dataset.n_classes, cf.dataset.priors)]
         elif cf.dataset.class_mode == 'segmentation':
             if K.image_dim_ordering() == 'th':
@@ -79,7 +80,7 @@ class Model_Factory():
     def make(self, cf, optimizer=None):
         if cf.model_name in ['lenet', 'alexNet', 'vgg16', 'vgg19', 'resnet50',
                              'InceptionV3', 'fcn8', 'unet', 'segnet',
-                             'segnet_basic', 'resnetFCN', 'yolo']:
+                             'segnet_basic', 'resnetFCN', 'yolo', 'tiny-yolo']:
             if optimizer is None:
                 raise ValueError('optimizer can not be None')
 
@@ -156,7 +157,12 @@ class Model_Factory():
             model = build_yolo(in_shape, cf.dataset.n_classes,
                                cf.dataset.n_priors,
                                load_pretrained=cf.load_imageNet,
-                               freeze_layers_from=cf.freeze_layers_from)
+                               freeze_layers_from=cf.freeze_layers_from, tiny=False)
+        elif cf.model_name == 'tiny-yolo':
+            model = build_yolo(in_shape, cf.dataset.n_classes,
+                               cf.dataset.n_priors,
+                               load_pretrained=cf.load_imageNet,
+                               freeze_layers_from=cf.freeze_layers_from, tiny=True)
         else:
             raise ValueError('Unknown model')
 

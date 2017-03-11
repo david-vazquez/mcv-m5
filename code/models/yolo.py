@@ -36,10 +36,8 @@ def build_yolo(img_shape=(3, 416, 416), n_classes=80, n_priors=5,
           #'yoloconvolution2d_21', 'convolution2d_1']
 
     if load_pretrained:
-      for layer in model.layers:
-          # Rename late layers to not load pretrained weights for them
-          if layer.name not in base_model_layers:
-              layer.name = layer.name+'_new'
+      # Rename last layers to not load pretrained weights
+      model.layers[-1].name += '_new'
       if not tiny:
         model.load_weights('weights/yolo.hdf5',by_name=True)
       else:
