@@ -110,7 +110,10 @@ def IoU(n_classes, void_labels):
 
 
 
-"""YOLO loss function"""
+"""
+    YOLO loss function
+    code adapted from https://github.com/thtrieu/darkflow/
+"""
 
 def logistic_activate_tensor(x):
     return 1. / (1. + tf.exp(-x))
@@ -120,7 +123,6 @@ def YOLOLoss(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,0.
   # Def custom loss function using numpy
   def _YOLOLoss(y_true, y_pred, name=None, priors=priors):
 
-      # TODO check dim_ordering. this is because we use th dimordering in tf
       net_out = tf.transpose(y_pred, perm=[0, 2, 3, 1])
 
       _,h,w,c = net_out.get_shape().as_list()
@@ -187,13 +189,13 @@ def YOLOLoss(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,0.
   return _YOLOLoss
 
 
-
-"""YOLO f-score detection metric"""
-
+"""
+    YOLO detection metrics
+    code adapted from https://github.com/thtrieu/darkflow/
+"""
 def YOLOFscore(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,0.5], [1.0,1.0], [1.7,1.7], [2.5,2.5]],max_truth_boxes=30,thresh=0.6,nms_thresh=0.3):
 
   def _YOLOFscore(y_true, y_pred, name=None):
-      # TODO check dim_ordering. this is because we use th dimordering in tf
       net_out = tf.transpose(y_pred, perm=[0, 2, 3, 1])
 
       _,h,w,c = net_out.get_shape().as_list()
@@ -233,7 +235,7 @@ def YOLOFscore(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,
       intersect_wh = tf.maximum(intersect_wh, 0.0)
       intersect = tf.multiply(intersect_wh[:,:,:,0], intersect_wh[:,:,:,1])
 
-      # calculate the best IOU, set 0.0 confidence for worse boxes
+      # calculate the best IOU and metrics 
       iou = tf.truediv(intersect, _areas + area_pred - intersect)
       best_ious     = tf.reduce_max(iou, [2], True)
       recall        = tf.reduce_sum(tf.to_float(tf.greater(best_ious,0.5)), [1])
