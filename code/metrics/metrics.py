@@ -204,7 +204,7 @@ def YOLOFscore(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,
       _confs = tf.squeeze(_confs,3)
       _areas = tf.squeeze(_areas,3)
 
-      net_out_reshape = tf.reshape(y_pred, [-1, h, w, b, (4 + 1 + num_classes)])
+      net_out_reshape = tf.reshape(net_out, [-1, h, w, b, (4 + 1 + num_classes)])
       # Extract the coordinate prediction from net.out
       coords = net_out_reshape[:, :, :, :, :4]
       coords = tf.reshape(coords, [-1, h*w, b, 4])
