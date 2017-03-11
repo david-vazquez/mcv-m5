@@ -3,126 +3,6 @@ import warnings
 
 """ YOLO regions utilities """
 
-def logistic_activate(x):
-  return 1.0/(1.0 + np.exp(-x))
-
-def logistic_gradient(x):
-  return (1-x)*x
-
-def yolo_activate_regions(x,num_boxes,num_classes):
-    num_coords = 4
-    size = num_coords + num_classes + 1
-    batch_size,num_filters,height,width = x.shape
-
-    for b in range(0,batch_size):
-      for k in range(0,num_boxes):
-        # logistic_activate of objectness score
-        index = size*k
-        x[b, index + 4, :, :] = logistic_activate(x[b, index + 4, :, :])
-        # softmax of class prediction
-        e_x = np.exp(x[b, index + 5:index + 5 + num_classes, :, :] -
-                     np.max(x[b, index + 5:index + 5 + num_classes, :, :],axis=0))
-        x[b, index + 5:index + 5 + num_classes, :, :] = e_x/np.sum((e_x),axis=0)
-    return x
-
-def yolo_get_region_box(pred,n,i,j,w,h,priors):
-  b = np.zeros(4)
-  b[0] = (i + logistic_activate(pred[0])) / w
-  b[1] = (j + logistic_activate(pred[1])) / h
-  b[2] = np.exp(pred[2]) * priors[n,0] / w
-  b[3] = np.exp(pred[3]) * priors[n,1] / h
-  return b
-
-def yolo_get_region_boxes(x,priors,num_classes,thresh):
-    num_boxes = len(priors)
-    num_coords = 4
-    batch_size,num_filters,height,width = x.shape
-    boxes = np.zeros((batch_size,num_boxes*height*width,num_coords))
-    probs = np.zeros((batch_size,num_boxes*height*width,num_classes))
-
-    for b in range(0,batch_size):
-      for k in range(0,num_boxes):
-        for row in range(0,height):
-          for col in range(0,width):
-            box_idx    = k*width*height+(row*width+col)
-            coords_idx = k*(num_coords+num_classes+1)
-            # activate of coords, and add prior (biases) w,h
-            boxes[b,box_idx,0] = (col + logistic_activate(x[b,coords_idx+0,row,col])) / width
-            boxes[b,box_idx,1] = (row + logistic_activate(x[b,coords_idx+1,row,col])) / height
-            boxes[b,box_idx,2] = np.exp(x[b,coords_idx+2,row,col]) * priors[k][0] / width
-            boxes[b,box_idx,3] = np.exp(x[b,coords_idx+3,row,col]) * priors[k][1] / height
-            # scale class probs by bbox objectness score
-            scale = x[b,coords_idx+4,row,col]
-            probs[b,box_idx,:] = scale*x[b,coords_idx+5:coords_idx+5+num_classes,row,col]
-            # set to zero probs under threshold
-            probs[b,box_idx,:][probs[b,box_idx,:] < thresh] = 0
-
-    return boxes,probs
-
-def yolo_delta_region_box(delta,truth,pred,n,idx,i,j,w,h,priors,coord_scale):
-  p = yolo_get_region_box(pred,n,i,j,w,h,priors)
-  iou = yolo_box_iou(p,truth)
-
-  tx = (truth[0]*w - i)
-  ty = (truth[1]*h - j)
-  tw = np.log(truth[2]*w / priors[n,0])
-  th = np.log(truth[3]*h / priors[n,1])
-
-  delta[idx[0],idx[1]+0,idx[2],idx[3]] = coord_scale * (tx - logistic_activate(pred[0])) * logistic_gradient(logistic_activate(pred[0]))
-  delta[idx[0],idx[1]+1,idx[2],idx[3]] = coord_scale * (ty - logistic_activate(pred[1])) * logistic_gradient(logistic_activate(pred[1]))
-  delta[idx[0],idx[1]+2,idx[2],idx[3]] = coord_scale * (tw - pred[2])
-  delta[idx[0],idx[1]+3,idx[2],idx[3]] = coord_scale * (th - pred[3])
-  return iou,delta
-
-def yolo_do_nms_sort(boxes,probs,num_classes,nms_thresh):
-    batch_size = boxes.shape[0]
-    total = boxes.shape[1] # 5*13*13 = 845
-
-    for b in range(0,batch_size):
-      for c in range(0,num_classes):
-        idx_sort = np.argsort(probs[b,:,c])[::-1]
-        for idx_a in range(0,total):
-          if probs[b,idx_sort[idx_a],c] == 0: continue
-          box_a = boxes[b,idx_sort[idx_a],:]
-          for idx_b in range(idx_a+1,total):
-            box_b = boxes[b,idx_sort[idx_b],:]
-            if (yolo_box_iou(box_a, box_b) > nms_thresh):
-              probs[b,idx_sort[idx_b],c] = 0
-
-    return boxes,probs
-
-def yolo_overlap(x1,w1,x2,w2):
-    l1 = x1 - w1/2
-    l2 = x2 - w2/2
-    if(l1 > l2):
-        left = l1
-    else:
-        left = l2
-    r1 = x1 + w1/2
-    r2 = x2 + w2/2
-    if(r1 < r2):
-        right = r1
-    else:
-        right = r2
-    return right - left
-
-def yolo_box_intersection(a, b):
-    w = yolo_overlap(a[0], a[2], b[0], b[2])
-    h = yolo_overlap(a[1], a[3], b[1], b[3])
-    if(w < 0 or h < 0):
-         return 0
-    area = w*h
-    return area
-
-def yolo_box_union(a, b):
-    i = yolo_box_intersection(a, b)
-    u = a[2]*a[3] + b[2]*b[3] - i
-    return u
-
-def yolo_box_iou(a, b):
-    return yolo_box_intersection(a, b)/yolo_box_union(a, b)
-
-
 def yolo_draw_detections(impath,boxes,probs,thresh,labels):
 
     def get_color(c,x,max):
@@ -172,31 +52,7 @@ def yolo_draw_detections(impath,boxes,probs,thresh,labels):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-def yolo_build_gt_batch(batch_gt,image_shape):
-
-    batch_size = len(batch_gt)
-    batch_y = np.zeros((batch_size, 5, image_shape[1]/32, image_shape[2]/32))
-    batch_y[:,0,:,:] = -1 # indicates nothing on this position
-
-    h = image_shape[1]/32
-    w = image_shape[2]/32
-    max_truth_boxes = w * h
-
-    for i,gt in enumerate(batch_gt):
-        t_ind = 0
-        for t in range(min(gt.shape[0],max_truth_boxes)):
-            t_i = t_ind%w
-            t_j = t_ind/w
-            batch_y[i,0,t_j,t_i] = gt[t,0] # object class
-            batch_y[i,1,t_j,t_i] = gt[t,1] # x coordinate
-            batch_y[i,2,t_j,t_i] = gt[t,2] # y coordinate
-            batch_y[i,3,t_j,t_i] = gt[t,3] # width
-            batch_y[i,4,t_j,t_i] = gt[t,4] # height
-            t_ind += 1
-
-    return batch_y
-
-def yolo_build_gt_batch2(batch_gt,image_shape,num_classes,num_priors=5):
+def yolo_build_gt_batch(batch_gt,image_shape,num_classes,num_priors=5):
 
     h = image_shape[1]/32
     w = image_shape[2]/32
@@ -248,7 +104,10 @@ def yolo_build_gt_batch2(batch_gt,image_shape,num_classes,num_priors=5):
     return batch_y
 
 
-""" Uitlities to convert Darknet models' weights into keras hdf5 format """
+""" 
+   Utilities to convert Darknet models' weights into keras hdf5 format
+   code adapted from https://github.com/sunshineatnoon/Darknet.keras
+"""
 
 class dummy_layer:
     def __init__(self,size,c,n,h,w,type):
@@ -587,7 +446,7 @@ def DarknetToKerasTinyYOLO(yoloNet):
             pass
     return model
 
-#if __name__ == '__main__':
+#Example use of Darknet to Keras converter
 #
 #    dummy_model = dummy_TinyYOLO()
 #    dummy_model = ReadYOLONetWeights(dummy_model,'weights/tiny-yolo.weights')

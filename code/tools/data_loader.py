@@ -23,7 +23,7 @@ from keras.preprocessing.image import (Iterator,
                                        random_channel_shift)
 
 from tools.save_images import save_img2
-from tools.yolo_utils import yolo_build_gt_batch,yolo_build_gt_batch2
+from tools.yolo_utils import yolo_build_gt_batch
 
 # Pad image
 def pad_image(x, pad_amount, mode='reflect', constant=0.):
@@ -1043,7 +1043,7 @@ class DirectoryIterator(Iterator):
                 batch_y[i, label] = 1.
         elif self.class_mode == 'detection':
             # YOLOLoss expects a particular batch_y format and shape
-            batch_y = yolo_build_gt_batch2(batch_y, self.image_shape, self.nb_class)
+            batch_y = yolo_build_gt_batch(batch_y, self.image_shape, self.nb_class)
             # TODO other detection networks may expect a different batch_y format and shape
         elif self.class_mode == None:
             return batch_x
