@@ -182,7 +182,7 @@ def YOLOLoss(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,0.
       loss = tf.reshape(loss, [-1, h*w*b*(4 + 1 + num_classes)])
       loss = tf.reduce_sum(loss, 1)
 
-      return tf.reduce_mean(loss)
+      return .5*tf.reduce_mean(loss)
 
   return _YOLOLoss
 
