@@ -5,8 +5,8 @@ dataset_name2                = None            # Second dataset name. None if no
 perc_mb2                     = None            # Percentage of data from the second dataset in each minibatch
 
 # Model
-model_name                   = 'yolo'          # Model to use
-freeze_layers_from           = 41              # Freeze layers from 0 to this layer during training (Useful for finetunning) [None | 'base_model' | Layer_id]
+model_name                   = 'yolo'          # Model to use: one of 'yolo' or 'tiny-yolo'
+freeze_layers_from           = 'base_model'    # Freeze layers from 0 to this layer during training (Useful for finetunning) [None | 'base_model' | Layer_id]
 show_model                   = False           # Show the architecture layers
 load_imageNet                = True            # Load Imagenet weights and normalize following imagenet procedure
 load_pretrained              = False           # Load a pretrained model for doing finetuning
@@ -19,9 +19,9 @@ pred_model                   = True            # Predict using the model
 
 # Debug
 debug                        = False           # Use only few images for debuging
-debug_images_train           = 64              # N images for training in debug mode (-1 means all)
-debug_images_valid           = 64              # N images for validation in debug mode (-1 means all)
-debug_images_test            = 64              # N images for testing in debug mode (-1 means all)
+debug_images_train           = 16              # N images for training in debug mode (-1 means all)
+debug_images_valid           = 16              # N images for validation in debug mode (-1 means all)
+debug_images_test            = 16              # N images for testing in debug mode (-1 means all)
 debug_n_epochs               = 2              # N of training epochs in debug mode
 
 # Batch sizes
@@ -45,9 +45,9 @@ seed_test                    = 1924            # Random seed for the testing shu
 
 # Training parameters
 optimizer                    = 'rmsprop'       # Optimizer
-learning_rate                = 0.001            # Training learning rate
+learning_rate                = 0.00001         # Training learning rate
 weight_decay                 = 0.              # Weight decay or L2 parameter norm penalty
-n_epochs                     = 7              # Number of epochs during training
+n_epochs                     = 15              # Number of epochs during training
 
 # Callback save results
 save_results_enabled         = False           # Enable the Callback
@@ -57,7 +57,7 @@ save_results_n_legend_rows   = 1               # Number of rows when showwing th
 
 # Callback early stoping
 earlyStopping_enabled        = False           # Enable the Callback
-earlyStopping_monitor        = 'fscore'           # Metric to monitor
+earlyStopping_monitor        = 'avg_recall'    # Metric to monitor
 earlyStopping_mode           = 'max'           # Mode ['max' | 'min']
 earlyStopping_patience       = 100             # Max patience for the early stopping
 earlyStopping_verbose        = 0               # Verbosity of the early stopping
@@ -71,7 +71,7 @@ checkpoint_save_weights_only = True            # Save only weights or also model
 checkpoint_verbose           = 1               # Verbosity of the checkpoint
 
 # Callback plot
-plotHist_enabled             = False           # Enable the Callback
+plotHist_enabled             = True            # Enable the Callback
 plotHist_verbose             = 0               # Verbosity of the callback
 
 # Data augmentation for training and normalization
