@@ -243,34 +243,6 @@ def YOLOFscore(input_shape=(3,640,640),num_classes=45,priors=[[0.25,0.25], [0.5,
       avg_iou       = tf.truediv(sum_best_ious, num_gt_obj)
       avg_recall    = tf.truediv(recall, num_gt_obj)
  
-#      best_box = tf.equal(iou, tf.reduce_max(iou, [2], True))
-#      best_box = tf.to_float(best_box)
-#      confs = tf.multiply(best_box, _confs)
-#
-#      # take care of the weight terms
-#      conid = noobject_scale * (1. - confs) + object_scale * confs
-#      weight_coo = tf.concat(4 * [tf.expand_dims(confs, -1)], 3)
-#      cooid = coord_scale * weight_coo
-#      weight_pro = tf.concat(num_classes * [tf.expand_dims(confs, -1)], 3)
-#      proid = class_scale * weight_pro
-#
-#      true = tf.concat([_coord, tf.expand_dims(confs, 3), _probs ], 3)
-#      wght = tf.concat([cooid, tf.expand_dims(conid, 3), proid ], 3)
-#
-#      loss = tf.pow(adjusted_net_out - true, 2)
-#      loss = tf.multiply(loss, wght)
-#      loss = tf.reshape(loss, [-1, h*w*b*(4 + 1 + num_classes)])
-#      loss = tf.reduce_sum(loss, 1)
-
-      #return {'avg_iou':tf.reduce_mean(avg_iou),'n_gt':tf.reduce_sum(num_gt_obj),'best_iou':tf.reduce_sum(sum_best_ious)}
       return {'avg_iou':tf.reduce_mean(avg_iou), 'avg_recall':tf.reduce_mean(avg_recall)}
   return _YOLOFscore
 
-#### for the fscore metric in tensor version look at darkflow/net/yolov2/test.py postprocess method,
-# it is called per image in batch as follows::
-# 
-#        for i, prediction in enumerate(out): # out is the output of forward pass
-#            self.framework.postprocess(prediction,
-#                os.path.join(inp_path, all_inp[i]))
-#
-#
