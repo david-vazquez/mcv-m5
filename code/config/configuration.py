@@ -90,6 +90,12 @@ class Configuration():
             cf.valid_metrics = ['val_loss', 'val_acc', 'val_jaccard']
             cf.best_metric = 'val_jaccard'
             cf.best_type = 'max'
+        elif cf.dataset.class_mode == 'detection':
+            # TODO detection may have other metrics than fscore
+            cf.train_metrics = ['loss', 'fscore']
+            cf.valid_metrics = ['val_loss', 'val_fscore']
+            cf.best_metric = 'val_fscore'
+            cf.best_type = 'max'
         else:
             cf.train_metrics = ['loss', 'acc']
             cf.valid_metrics = ['val_loss', 'val_acc']
