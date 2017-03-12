@@ -1,56 +1,13 @@
 import numpy as np
 import warnings
+import math
+import cv2
 
-""" YOLO regions utilities """
-
-def yolo_draw_detections(impath,boxes,probs,thresh,labels):
-
-    def get_color(c,x,max):
-      colors = ( (1,0,1), (0,0,1),(0,1,1),(0,1,0),(1,1,0),(1,0,0) )
-      ratio = (float(x)/max)*5
-      i = np.floor(ratio)
-      j = np.ceil(ratio)
-      ratio -= i
-      r = (1-ratio) * colors[int(i)][int(c)] + ratio*colors[int(j)][int(c)]
-      return r*255
-
-    num_boxes   = boxes.shape[0]
-    num_classes = probs.shape[1]
-
-    im  = cv2.imread(impath)
-
-    for i in range(num_boxes):
-        #for each box, find the class with maximum prob
-        max_class = np.argmax(probs[i,:])
-        prob = probs[i,max_class]
-        if(prob > thresh):
-            print labels[max_class],": ",prob
-            b = boxes[i,:]
-
-            left  = (b[0]-b[2]/2.)*im.shape[1]
-            right = (b[0]+b[2]/2.)*im.shape[1]
-            top   = (b[1]-b[3]/2.)*im.shape[0]
-            bot   = (b[1]+b[3]/2.)*im.shape[0]
-
-            if(left < 0): left = 0
-            if(right > im.shape[1]-1): right = im.shape[1]-1
-            if(top < 0): top = 0
-            if(bot > im.shape[0]-1): bot = im.shape[0]-1
-
-            offset = max_class*123457 % len(labels)
-            color = (get_color(2,offset,len(labels)),get_color(1,offset,len(labels)),get_color(0,offset,len(labels)))
-            cv2.rectangle(im, (int(left),int(top)), (int(right),int(bot)), color, 4)
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            scale = 0.65
-            thickness = 1
-            size=cv2.getTextSize(labels[max_class], font, scale, thickness)
-            cv2.rectangle(im, (int(left)-4,int(top)-size[0][1]-8), (int(left)+size[0][0]+8,int(top)), color, -1)
-            cv2.putText(im, labels[max_class], (int(left),int(top)-4), font, scale, (0,0,0), thickness, cv2.LINE_AA)
-
-    cv2.imwrite('prediction.jpg',im)
-    cv2.imshow('image',im)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+"""
+    YOLO utitlities
+    code adapted from https://github.com/thtrieu/darkflow/
+                 and  https://pjreddie.com/darknet/yolo/
+"""
 
 def yolo_build_gt_batch(batch_gt,image_shape,num_classes,num_priors=5):
 
@@ -102,6 +59,134 @@ def yolo_build_gt_batch(batch_gt,image_shape,num_classes,num_priors=5):
         batch_y[i,:] = np.concatenate((probs,confs,coord,areas[:,:,np.newaxis],upleft,botright),axis=2)
 
     return batch_y
+
+
+class BoundBox:
+    def __init__(self, classes):
+        self.x, self.y = float(), float()
+        self.w, self.h = float(), float()
+        self.c = float()
+        self.class_num = classes
+        self.probs = np.zeros((classes,))
+
+def overlap(x1,w1,x2,w2):
+    l1 = x1 - w1 / 2.;
+    l2 = x2 - w2 / 2.;
+    left = max(l1, l2)
+    r1 = x1 + w1 / 2.;
+    r2 = x2 + w2 / 2.;
+    right = min(r1, r2)
+    return right - left;
+
+def box_intersection(a, b):
+    w = overlap(a.x, a.w, b.x, b.w);
+    h = overlap(a.y, a.h, b.y, b.h);
+    if w < 0 or h < 0: return 0;
+    area = w * h;
+    return area;
+
+def box_union(a, b):
+    i = box_intersection(a, b);
+    u = a.w * a.h + b.w * b.h - i;
+    return u;
+
+def box_iou(a, b):
+    return box_intersection(a, b) / box_union(a, b);
+
+def prob_compare(box):
+    return box.probs[box.class_num]
+
+def expit(x):
+	return 1. / (1. + np.exp(-x))
+
+def _softmax(x):
+    e_x = np.exp(x - np.max(x))
+    out = e_x / e_x.sum()
+    return out
+
+def yolo_postprocess_net_out(net_out, anchors, labels, threshold, nms_threshold):
+	C = len(labels) 
+        B = len(anchors)
+        net_out = np.transpose(net_out, (1,2,0))
+	H,W = net_out.shape[:2]
+	net_out = net_out.reshape([H, W, B, -1])
+
+	boxes = list()
+	for row in range(H):
+		for col in range(W):
+			for b in range(B):
+				bx = BoundBox(C)
+				bx.x, bx.y, bx.w, bx.h, bx.c = net_out[row, col, b, :5]
+				bx.c = expit(bx.c)
+				bx.x = (col + expit(bx.x)) / W
+				bx.y = (row + expit(bx.y)) / H
+				bx.w = math.exp(bx.w) * anchors[b][0] / W
+				bx.h = math.exp(bx.h) * anchors[b][1] / H
+				classes = net_out[row, col, b, 5:]
+				bx.probs = _softmax(classes) * bx.c
+				bx.probs *= bx.probs > threshold
+				boxes.append(bx)
+
+	# non max suppress boxes
+	for c in range(C):
+		for i in range(len(boxes)):
+			boxes[i].class_num = c
+		boxes = sorted(boxes, key = prob_compare)
+		for i in range(len(boxes)):
+			boxi = boxes[i]
+			if boxi.probs[c] == 0: continue
+			for j in range(i + 1, len(boxes)):
+				boxj = boxes[j]
+				if box_iou(boxi, boxj) >= nms_threshold:
+					boxes[j].probs[c] = 0.
+
+	return boxes
+
+def yolo_draw_detections(boxes, im, anchors, labels, threshold, nms_threshold):
+
+        def get_color(c,x,max):
+          colors = ( (1,0,1), (0,0,1),(0,1,1),(0,1,0),(1,1,0),(1,0,0) )
+          ratio = (float(x)/max)*5
+          i = np.floor(ratio)
+          j = np.ceil(ratio)
+          ratio -= i
+          r = (1-ratio) * colors[int(i)][int(c)] + ratio*colors[int(j)][int(c)]
+          return r*255
+
+	if type(im) is not np.ndarray:
+		imgcv = cv2.imread(im)
+	else: imgcv = im
+	h, w, _ = imgcv.shape
+	for b in boxes:
+		max_indx = np.argmax(b.probs)
+		max_prob = b.probs[max_indx]
+		label = 'object' * int(len(labels) < 2)
+		label += labels[max_indx] * int(len(labels)>1)
+		if max_prob > threshold:
+			left  = int ((b.x - b.w/2.) * w)
+			right = int ((b.x + b.w/2.) * w)
+			top   = int ((b.y - b.h/2.) * h)
+			bot   = int ((b.y + b.h/2.) * h)
+			if left  < 0    :  left = 0
+			if right > w - 1: right = w - 1
+			if top   < 0    :   top = 0
+			if bot   > h - 1:   bot = h - 1
+			thick = int((h+w)/300)
+			mess = '{}'.format(label)
+                        offset = max_indx*123457 % len(labels)
+                        color = (get_color(2,offset,len(labels)),
+                                 get_color(1,offset,len(labels)),
+                                 get_color(0,offset,len(labels)))
+			cv2.rectangle(imgcv,
+				(left, top), (right, bot),
+				color, thick)
+                        font = cv2.FONT_HERSHEY_SIMPLEX
+                        scale = 0.65
+                        thickness = 1
+                        size=cv2.getTextSize(mess, font, scale, thickness)
+                        cv2.rectangle(im, (left-2,top-size[0][1]-4), (left+size[0][0]+4,top), color, -1)
+                        cv2.putText(im, mess, (left+2,top-2), font, scale, (0,0,0), thickness, cv2.LINE_AA)
+	return imgcv
 
 
 """ 
