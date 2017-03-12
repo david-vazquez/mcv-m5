@@ -1042,9 +1042,9 @@ class DirectoryIterator(Iterator):
             for i, label in enumerate(self.classes[index_array]):
                 batch_y[i, label] = 1.
         elif self.class_mode == 'detection':
+            # TODO detection: check model, other networks may expect a different batch_y format and shape
             # YOLOLoss expects a particular batch_y format and shape
             batch_y = yolo_build_gt_batch(batch_y, self.image_shape, self.nb_class)
-            # TODO other detection networks may expect a different batch_y format and shape
         elif self.class_mode == None:
             return batch_x
 
