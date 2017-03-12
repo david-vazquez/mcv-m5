@@ -6,7 +6,7 @@ perc_mb2                     = None            # Percentage of data from the sec
 
 # Model
 model_name                   = 'yolo'          # Model to use: one of 'yolo' or 'tiny-yolo'
-freeze_layers_from           = 'base_model'    # Freeze layers from 0 to this layer during training (Useful for finetunning) [None | 'base_model' | Layer_id]
+freeze_layers_from           = None            # Freeze layers from 0 to this layer during training (Useful for finetunning) [None | 'base_model' | Layer_id]
 show_model                   = False           # Show the architecture layers
 load_imageNet                = True            # Load Imagenet weights and normalize following imagenet procedure
 load_pretrained              = False           # Load a pretrained model for doing finetuning
@@ -47,7 +47,7 @@ seed_test                    = 1924            # Random seed for the testing shu
 optimizer                    = 'rmsprop'       # Optimizer
 learning_rate                = 0.00001         # Training learning rate
 weight_decay                 = 0.              # Weight decay or L2 parameter norm penalty
-n_epochs                     = 15              # Number of epochs during training
+n_epochs                     = 10              # Number of epochs during training
 
 # Callback save results
 save_results_enabled         = False           # Enable the Callback
