@@ -74,4 +74,3 @@ Download the [Overleaf document](https://www.overleaf.com/read/qrjbtzwtjhmx)
  - [Group 10:](https://github.com/davVision/mcv-m5)
   - Jaume Garcia
   - Martí Balcells
-
