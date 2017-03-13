@@ -74,6 +74,11 @@ checkpoint_verbose           = 0               # Verbosity of the checkpoint
 plotHist_enabled             = True            # Enable the Callback
 plotHist_verbose             = 0               # Verbosity of the callback
 
+# Callback LR decay scheduler
+lrDecayScheduler_enabled     = False           # Enable the Callback
+lrDecayScheduler_epochs      = [5, 10, 20]     # List of epochs were decay is applied or None for all epochs
+lrDecayScheduler_rate        = 2               # Decay rate (new_lr = lr / decay_rate). Usually between 2 and 10.
+
 # Data augmentation for training and normalization
 norm_imageNet_preprocess           = False     # Normalize following imagenet procedure
 norm_fit_dataset                   = True      # If True it recompute std and mean from images. Either it uses the std and mean set at the dataset config file
