@@ -11,7 +11,7 @@ show_model                   = False           # Show the architecture layers
 load_imageNet                = False           # Load Imagenet weights and normalize following imagenet procedure
 load_pretrained              = True            # Load a pretrained model for doing finetuning
 weights_file                 = '/path/to/pretrained/weights.hdf5'  # Training weight file name
-weights_test_file			 = 'weights.hdf5'  # Testing weight file name. If this variable doesn't exist, the weights created in the training are used
+weights_test_file            = 'weights.hdf5'  # Testing weight file name. If this variable doesn't exist, the weights created in the training are used
 
 # Parameters
 train_model                  = True            # Train the model
