@@ -21,6 +21,12 @@ def yolo_build_gt_batch(batch_gt,image_shape,num_classes,num_priors=5):
     cellx = 32
     celly = 32
     for i,gt in enumerate(batch_gt):
+        if gt.shape[0] == 0:
+          # if there are no objects we'll get NaNs on YOLOLoss, set everything to one!
+          # TODO check if the following line harms learning in case of 
+          #      having lots of images with no objects
+          batch_y[i] = np.ones((h*w,b,c+4+1+1+2+2))
+          continue
         objects = gt.tolist()
         for obj in objects:
             centerx = obj[1] * image_shape[2]

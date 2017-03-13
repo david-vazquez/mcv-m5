@@ -638,6 +638,9 @@ class ImageDataGenerator(object):
             # reject regions that are too small
             y = y[y[:,3]>0.005]
             y = y[y[:,4]>0.005]
+            if y.shape[0] == 0:
+                warnings.warn('DirectoryIterator: your data augmentation strategy '
+                              'is is moving all the boxes out of the image ')
 
         # TODO:
         # channel-wise normalization
@@ -983,7 +986,7 @@ class DirectoryIterator(Iterator):
                 y = y[((y[:,2] > 0.) & (y[:,2] < 1.))]
                 y = y[((y[:,3] > 0.) & (y[:,3] < 1.))]
                 y = y[((y[:,4] > 0.) & (y[:,4] < 1.))]
-                if (y.shape != gt.shape):
+                if (y.shape != gt.shape) or (y.shape[0] == 0):
                     warnings.warn('DirectoryIterator: found an invalid annotation '
                                   'on GT file '+label_path)
                 # shuffle gt boxes order
