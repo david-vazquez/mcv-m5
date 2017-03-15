@@ -17,7 +17,7 @@ Download the [Overleaf document](https://www.overleaf.com/read/qrjbtzwtjhmx)
 - Google slides for Week 7 (T.B.A.)
 
 ## Peer review
-- Intra-group evaluation form for Week 2 (T.B.A.)
+- Intra-group evaluation form for [Week 2](https://goo.gl/forms/7qgDLUaQJRgTB37G2)
 - Intra-group evaluation form for Week 4 (T.B.A.)
 - Intra-group evaluation form for Week 6 (T.B.A.)
 - Intra-group evaluation form for Week 7 (T.B.A.)
