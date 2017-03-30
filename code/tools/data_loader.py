@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import warnings
+import cv2
 import skimage.io as io
 from skimage.color import rgb2gray, gray2rgb
 import skimage.transform
@@ -11,6 +12,7 @@ from numpy.linalg import inv
 from six.moves import range
 import os
 import SimpleITK as sitk
+import pickle
 
 from keras import backend as K
 from keras.preprocessing.image import (Iterator,
@@ -24,6 +26,7 @@ from keras.preprocessing.image import (Iterator,
 
 from tools.save_images import save_img2
 from tools.yolo_utils import yolo_build_gt_batch
+from tools.ssd_utils  import BBoxUtility
 
 # Pad image
 def pad_image(x, pad_amount, mode='reflect', constant=0.):
@@ -211,6 +214,9 @@ class ImageDataGenerator(object):
                  void_label=0.,
                  horizontal_flip=False,
                  vertical_flip=False,
+                 saturation_scale_range = 1.,
+                 exposure_scale_range = 1.,
+                 hue_shift_range = 0.,
                  rescale=None,
                  preprocessing_function=None,
                  spline_warp=False,
@@ -220,7 +226,8 @@ class ImageDataGenerator(object):
                  class_mode='categorical',
                  rgb_mean=None,
                  rgb_std=None,
-                 crop_size=None):
+                 crop_size=None,
+                 model_name=None):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
         self.__dict__.update(locals())
@@ -228,6 +235,7 @@ class ImageDataGenerator(object):
         # self.rescale = rescale
         self.preprocessing_function = preprocessing_function
         self.cb_weights = None
+        self.model_name = model_name
 
         if dim_ordering not in {'tf', 'th'}:
             raise Exception('dim_ordering should be "tf" (channel after row '
@@ -300,7 +308,7 @@ class ImageDataGenerator(object):
             batch_size=batch_size, shuffle=shuffle, seed=seed,
             gt_directory=gt_directory,
             save_to_dir=save_to_dir, save_prefix=save_prefix,
-            save_format=save_format)
+            save_format=save_format, model_name=self.model_name)
 
     def flow_from_directory2(self, directory,
                              resize=None, target_size=(256, 256),
@@ -520,6 +528,32 @@ class ImageDataGenerator(object):
             x = random_channel_shift(x, self.channel_shift_range,
                                      img_channel_index)
 
+        if (self.saturation_scale_range > 1) or (self.exposure_scale_range > 1) or (self.hue_shift_range != 0):
+            if img_channel_index == 2:
+                hsv = cv2.cvtColor(x, cv2.COLOR_RGB2HSV)
+            elif img_channel_index == 0:
+                hsv = cv2.cvtColor(np.transpose(x,(1,2,0)), cv2.COLOR_RGB2HSV)
+
+            if self.hue_shift_range != 0:
+                shift = 360*np.random.uniform(-self.hue_shift_range,self.hue_shift_range)
+                hsv[:,:,0] = np.clip(hsv[:,:,0]+shift, 0, 360)
+
+            if self.saturation_scale_range > 1:
+                scale = np.random.uniform(1,self.saturation_scale_range)
+                if np.random.uniform() > 0.5:
+                    scale = 1./scale
+                hsv[:,:,1] = np.clip(hsv[:,:,1]*scale, 0, 1)
+
+            if self.exposure_scale_range > 1:
+                scale = np.random.uniform(1,self.saturation_scale_range)
+                if np.random.uniform() > 0.5:
+                    scale = 1./scale
+                hsv[:,:,2] = np.clip(hsv[:,:,2]*scale, 0, 1)
+
+            x = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
+            if img_channel_index == 0:
+                x = np.transpose(x,(2,0,1))
+
         if self.horizontal_flip:
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_col_index)
@@ -645,7 +679,6 @@ class ImageDataGenerator(object):
         # TODO:
         # channel-wise normalization
         # barrel/fisheye
-        # hsv random shifts
         # blur
         return x, y
 
@@ -840,7 +873,7 @@ class DirectoryIterator(Iterator):
                  dim_ordering='default',
                  classes=None, class_mode='categorical',
                  batch_size=32, shuffle=True, seed=None, gt_directory=None,
-                 save_to_dir=None, save_prefix='', save_format='jpeg'):
+                 save_to_dir=None, save_prefix='', save_format='jpeg', model_name=None):
         # Check dim order
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
@@ -853,6 +886,8 @@ class DirectoryIterator(Iterator):
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
         self.save_format = save_format
+
+        self.model_name = model_name
 
         # Check target size
         if target_size is None and batch_size > 1:
@@ -915,6 +950,11 @@ class DirectoryIterator(Iterator):
                     if not os.path.isfile(gt_fname):
                         raise ValueError('GT file not found: ' + gt_fname)
             self.filenames = np.sort(self.filenames)
+
+            if self.model_name == 'ssd':
+              priors = pickle.load(open('weights/prior_boxes_ssd300.pkl', 'rb'))
+              self.bbox_util = BBoxUtility(self.nb_class+1, priors)
+
         elif not self.class_mode == 'segmentation':
             for subdir in classes:
                 subpath = os.path.join(directory, subdir)
@@ -1045,9 +1085,22 @@ class DirectoryIterator(Iterator):
             for i, label in enumerate(self.classes[index_array]):
                 batch_y[i, label] = 1.
         elif self.class_mode == 'detection':
-            # TODO detection: check model, other networks may expect a different batch_y format and shape
-            # YOLOLoss expects a particular batch_y format and shape
-            batch_y = yolo_build_gt_batch(batch_y, self.image_shape, self.nb_class)
+            if 'yolo' in self.model_name:
+                batch_y = yolo_build_gt_batch(batch_y, self.image_shape, self.nb_class)
+            elif self.model_name == 'ssd':
+                targets = []
+                for boxes in batch_y:
+                  boxes_corrected = np.zeros((boxes.shape[0], 4+self.nb_class))
+                  for b,box in enumerate(boxes):
+                    boxes_corrected[b,0] = box[1] - box[3]/2
+                    boxes_corrected[b,1] = box[2] - box[4]/2
+                    boxes_corrected[b,2] = box[1] + box[3]/2
+                    boxes_corrected[b,3] = box[2] + box[4]/2
+                    c = 4+int(box[0])
+                    boxes_corrected[b,c] = 1.
+                  boxes_corrected = self.bbox_util.assign_boxes(boxes_corrected)
+                  targets.append(boxes_corrected)
+                batch_y = np.array(targets)
         elif self.class_mode == None:
             return batch_x
 

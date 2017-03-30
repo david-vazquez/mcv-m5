@@ -101,10 +101,16 @@ class Configuration():
             cf.best_type = 'max'
         elif cf.dataset.class_mode == 'detection':
             # TODO detection : different nets may have other metrics
-            cf.train_metrics = ['loss', 'avg_recall', 'avg_iou']
-            cf.valid_metrics = ['val_loss', 'val_avg_recall', 'val_avg_iou']
-            cf.best_metric = 'val_avg_recall'
-            cf.best_type = 'max'
+            if 'yolo' in cf.model_name:
+              cf.train_metrics = ['loss', 'avg_recall', 'avg_iou']
+              cf.valid_metrics = ['val_loss', 'val_avg_recall', 'val_avg_iou']
+              cf.best_metric = 'val_avg_recall'
+              cf.best_type = 'max'
+            elif cf.model_name == 'ssd':
+              cf.train_metrics = ['loss']
+              cf.valid_metrics = ['val_loss']
+              cf.best_metric = 'val_loss'
+              cf.best_type = 'min'
         else:
             cf.train_metrics = ['loss', 'acc']
             cf.valid_metrics = ['val_loss', 'val_acc']
