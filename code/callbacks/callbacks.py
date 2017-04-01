@@ -211,6 +211,7 @@ class Save_results(Callback):
             enqueuer.stop()
 
 
+# Deprecated
 class LRDecayScheduler(Callback):
     """
     Decays the learning rate by the specified decay rate (> 1) at specific epochs, or for each epoch
@@ -239,3 +240,86 @@ class LRDecayScheduler(Callback):
             raise ValueError('Decay rate for LRDecayScheduler must be a number.\n'
                              'Decay epochs for LRDecayScheduler must be a list of numbers.')
 
+
+class Scheduler():
+    """ Learning rate scheduler function
+    # Arguments
+        scheduler_type: ['linear' | 'step' | 'square' | 'sqrt']
+        lr: initial learning rate
+        M: number of learning iterations
+        decay: decay coefficient
+        S: step iteration
+        from: https://arxiv.org/pdf/1606.02228.pdf
+        poly from: https://arxiv.org/pdf/1606.00915.pdf
+    """
+    def __init__(self, scheduler_type='linear', lr=0.001, M=320000,
+                 decay=0.1, S=100000, power=0.9):
+        # Save parameters
+        self.scheduler_type = scheduler_type
+        self.lr = float(lr)
+        self.decay = float(decay)
+        self.M = float(M)
+        self.S = S
+        self.power = power
+
+        # Get function
+        if self.scheduler_type == 'linear':
+            self.scheduler_function = self.linear_scheduler
+        elif self.scheduler_type == 'step':
+            self.scheduler_function = self.step_scheduler
+        elif self.scheduler_type == 'square':
+            self.scheduler_function = self.square_scheduler
+        elif self.scheduler_type == 'sqrt':
+            self.scheduler_function = self.sqrt_scheduler
+        elif self.scheduler_type == 'poly':
+            self.scheduler_function = self.poly_scheduler
+        else:
+            raise ValueError('Unknown scheduler: ' + self.scheduler_type)
+
+    def step_scheduler(self, i):
+        return self.lr * math.pow(self.decay, math.floor(i/self.M))
+
+    def linear_scheduler(self, i):
+        return self.lr * (1. - i/self.M)
+
+    def square_scheduler(self, i):
+        return self.lr * ((1. - i/self.M)**2)
+
+    def sqrt_scheduler(self, i):
+        return self.lr * math.sqrt(1. - i/self.M)
+
+    def poly_scheduler(self, i):
+        return self.lr * ((1. - i/self.M)**self.power)
+
+
+class LearningRateSchedulerBatch(Callback):
+    """Learning rate scheduler.
+
+    # Arguments
+        schedule: a function that takes an epoch index as input
+            (integer, indexed from 0) and returns a new
+            learning rate as output (float).
+    """
+
+    def __init__(self, schedule):
+        super(LearningRateSchedulerBatch, self).__init__()
+        self.schedule = schedule
+        self.iter = 0
+
+    def on_batch_begin(self, batch, logs=None):
+        self.iter += 1
+        self.change_lr(self.iter)
+
+    def on_epoch_begin(self, epoch, logs=None):
+        lr = self.schedule(self.iter)
+        print('   New lr: ' + str(lr))
+
+    def change_lr(self, iteration):
+        if not hasattr(self.model.optimizer, 'lr'):
+            raise ValueError('Optimizer must have a "lr" attribute.')
+        lr = self.schedule(iteration)
+        #print('   New lr: ' + str(lr))
+        if not isinstance(lr, (float, np.float32, np.float64)):
+            raise ValueError('The output of the "schedule" function '
+                             'should be float.')
+        K.set_value(self.model.optimizer.lr, lr)
