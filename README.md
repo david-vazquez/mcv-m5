@@ -22,6 +22,26 @@ Download the [Overleaf document](https://www.overleaf.com/read/qrjbtzwtjhmx)
 - Intra-group evaluation form for Week 6 (T.B.A.)
 - Intra-group evaluation form for Week 7 (T.B.A.)
 
+## Paper reviewing process
+The articles review will be done as in a conference using the standard CMT platform.
+
+Site: [CMT](https://cmt3.research.microsoft.com/MCVVR2017)
+
+### Important dates:
+
+ - Authors Submission deadline: 17th April 2017
+ - Reviewers Reviewing Deadline: 28th April 2017
+ - Authors Notification: 2nd May 2017
+ - Camera Ready: 6th May 2017
+
+### Instructions:
+
+ - Please, register all of you already to the CMT.
+ - Start the submission of the article (Upload whatever you have up to now). At any moment before the 17th you can change your submission.
+ - Remember that authors order matter!!! First author should be the one that most contributed to the work. Lets start the fight!!
+
+
+
 ## News
  - Improve your GitHub account following [this document](https://docs.google.com/document/d/14oxSKWBbMajIB5Bn2CM-DNb-vychY1f393qYfsHNJfY/edit?usp=sharing)
 
