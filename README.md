@@ -18,8 +18,8 @@ Download the [Overleaf document](https://www.overleaf.com/read/qrjbtzwtjhmx)
 
 ## Peer review
 - Intra-group evaluation form for [Week 2](https://goo.gl/forms/7qgDLUaQJRgTB37G2)
-- Intra-group evaluation form for Week 4 (T.B.A.)
-- Intra-group evaluation form for Week 6 (T.B.A.)
+- Intra-group evaluation form for [Weeks 3/4](https://goo.gl/forms/V22bhu0xDzCRXPtI3)
+- Intra-group evaluation form for [Weeks 5/6](https://goo.gl/forms/wkhSDa3NKKtHoCy52)
 - Intra-group evaluation form for Week 7 (T.B.A.)
 
 ## Paper reviewing process
