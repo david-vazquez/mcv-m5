@@ -55,7 +55,7 @@ Site: [CMT](https://cmt3.research.microsoft.com/MCVVR2017)
   - Victor Campmany
   - Pau Cebrián
   - Arnau Baró
-  - Guillem Cuanull
+  - Guillem Cucurull
  - [Group 3:](https://github.com/XeniaSalinas/mcv-m5)
   - Lidia Garrucho
   - Cristina Bustos
